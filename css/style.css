@@ -1,0 +1,26 @@
+.nd-el {
+	border: 1px solid #000;
+	width: 1000px;
+	overflow: hidden;
+	height: 100px;
+	margin: 20px;
+	position: relative;
+	color: white;
+	top: 200px;
+	border-color: red;
+}
+
+.video-background {
+	position: absolute;
+	z-index: -2;
+	top: 0;;
+	left: 0;
+	overflow: hidden;
+}
+
+.video-background-overlay {
+	position: absolute;
+	z-index: -1;
+	top: 0;
+	left: 0
+}
