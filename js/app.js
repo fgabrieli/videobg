@@ -1,5 +1,5 @@
 // Video classes
-var videoTypes = [ YoutubeVideo, /* VimeoVideo */];
+var videoTypes = [ YoutubeVideo, VimeoVideo];
 
 // Abstract
 function Video($targetEl, videoUrl) {
@@ -76,7 +76,7 @@ $.extend(YoutubeVideo.prototype, Video.prototype, {
     },
     
     adjustSize : function() {
-        this.videoWidth = screen.width;
+        this.videoWidth = $('body').width();
 
         this.videoHeight = (9 / 16 * this.videoWidth);
 
@@ -93,7 +93,9 @@ $.extend(YoutubeVideo.prototype, Video.prototype, {
     },
 
     getEmbedUrl : function() {
-        var watchType = this.videoUrl.match(/\/watch\?v=(.*)$/);
+        var url = this.videoUrl;
+        
+        var watchType = url.match(/\/watch\?v=(.*)$/);
         if (watchType !== null) {
             var videoId = watchType[1];
             url = 'https://www.youtube.com/embed/' + videoId;
@@ -116,18 +118,18 @@ function VimeoVideo($targetEl, videoUrl) {
 $.extend(VimeoVideo.prototype, Video.prototype, {
     createIframe : function() {
         this.$iframe = $('<iframe src="'
-                + videoUrl
+                + this.videoUrl
                 + '?autoplay=1&loop=1&color=transparent&title=0&byline=0&portrait=0&badge=0&byline=0" width="640" height="360" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>');
     },
     
     adjustSize : function() {
         // 1.06 = 6%. We need to add this width to hide vimeo
         // controls
-        this.videoWidth = 1.06 * screen.width;
+        this.videoWidth = 1.06 * $('body').width();
 
         this.videoHeight = (9 / 16 * this.videoWidth);
 
-        var elHeight = $el.height();
+        var elHeight = this.$targetEl.height();
 
         // 1.08 = 8%. We need to add this width to hide vimeo
         // controls
@@ -146,6 +148,8 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
     },
 
     getEmbedUrl : function() {
+        var url = this.videoUrl;
+
         var lastPart = url.match(/\/(\d+)$/);
         if (lastPart == null) {
             throw 'Vimeo url is not valid';
@@ -164,20 +168,37 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
 });
 
 {
-    var videos = [];
-
-    $(document).ready(function() {
-
-        var $el = $('.nd-el:nth(0)');
-
-        var videoUrl = 'https://www.youtube.com/watch?v=6pxRHBw-k8M';
-
+    function onSetVideoUrl(e) {
+        var videoUrl = $(e.target).val();
+        
         for (var i = 0; i < videoTypes.length; i++) {
             var videoType = videoTypes[i];
             if (videoType.prototype.isValid(videoUrl)) {
-                videos.push(new videoType($el, videoUrl));
-                videos[i].render();
+                var video = new videoType($('.nd-el'), videoUrl);
+                video.render();
+                break;
             }
         }
-    });
+    }
+    
+    
+//    var videos = [];
+//
+//    $(document).ready(function() {
+//
+//        var $el = $('.nd-el:nth(0)');
+//
+//        //var videoUrl = 'https://www.youtube.com/watch?v=6pxRHBw-k8M';
+//
+//        var videoUrl = 'https://vimeo.com/35396305';
+//        
+//        for (var i = 0; i < videoTypes.length; i++) {
+//            var videoType = videoTypes[i];
+//            if (videoType.prototype.isValid(videoUrl)) {
+//                var video = new videoType($el, videoUrl);
+//                video.render();
+//                videos.push(video);
+//            }
+//        }
+//    });
 }
