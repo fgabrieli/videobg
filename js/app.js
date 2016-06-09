@@ -1,13 +1,17 @@
-// Video classes
-var videoTypes = [ YoutubeVideo, VimeoVideo];
+/**
+ * To add a new video type just create a class that extends from Video and add it to videoTypes.
+ */
 
-// Abstract
+// Video classes
+var videoTypes = [YoutubeVideo, VimeoVideo];
+
+// Abstract, Video
 function Video($targetEl, videoUrl) {
     this.$targetEl = $targetEl;
 
     this.videoUrl = videoUrl;
 
-    this.$iframe = {};
+    this.$videoEl = {};
 
     var t = this;
     $(window).resize(function() {
@@ -16,6 +20,28 @@ function Video($targetEl, videoUrl) {
 }
 
 $.extend(Video.prototype, {
+    render : function() {
+        this.videoUrl = this.getEmbedUrl();
+
+        this.createVideoEl();
+
+        this.adjustSize();
+
+        // video container
+        $videoContainerEl = $('<div class="video-background">');
+        this.$videoEl.appendTo($videoContainerEl);
+
+        // set overlay so the video can not be clicked/hovered
+        var $overlayEl = $('<div class="video-background-overlay">');
+        $overlayEl.appendTo(this.$targetEl);
+
+        // append video bg to element
+        $videoContainerEl.appendTo(this.$targetEl);
+
+        // target the middle part of the video
+        this.targetMiddlePart($videoContainerEl);
+    },
+
     targetMiddlePart : function($containerEl) {
         var deltaY = this.videoHeight / 2;
         deltaY -= this.$targetEl.height() / 2;
@@ -28,28 +54,6 @@ $.extend(Video.prototype, {
         deltaX = -1 * deltaX;
 
         $containerEl.css('left', deltaX + 'px');
-    },
-
-    render : function() {
-        this.videoUrl = this.getEmbedUrl();
-
-        this.createIframe();
-
-        this.adjustSize();
-
-        // video container
-        $videoContainerEl = $('<div class="video-background">');
-        this.$iframe.appendTo($videoContainerEl);
-
-        // set overlay so the video can not be clicked/hovered
-        var $overlayEl = $('<div class="video-background-overlay">');
-        $overlayEl.appendTo(this.$targetEl);
-
-        // append video bg to element
-        $videoContainerEl.appendTo(this.$targetEl);
-
-        // target the middle part of the video
-        this.targetMiddlePart($videoContainerEl);
     },
 
     remove : function() {
@@ -70,8 +74,8 @@ function YoutubeVideo($targetEl, videoUrl) {
 }
 
 $.extend(YoutubeVideo.prototype, Video.prototype, {
-    createIframe : function() {
-        this.$iframe = $('<iframe width="560" height="315" src="' + this.videoUrl
+    createVideoEl : function() {
+        this.$videoEl = $('<iframe width="560" height="315" src="' + this.videoUrl
                 + '?autoplay=1&loop=1&controls=0" frameborder="0" allowfullscreen></iframe>');
     },
     
@@ -88,8 +92,8 @@ $.extend(YoutubeVideo.prototype, Video.prototype, {
         }
 
         // apply dimensions to iframe
-        this.$iframe.css('width', this.videoWidth + 'px');
-        this.$iframe.css('height', this.videoHeight + 'px')
+        this.$videoEl.css('width', this.videoWidth + 'px');
+        this.$videoEl.css('height', this.videoHeight + 'px')
     },
 
     getEmbedUrl : function() {
@@ -106,7 +110,7 @@ $.extend(YoutubeVideo.prototype, Video.prototype, {
 
     // static
     isValid : function(url) {
-        return url.match(/^https:\/\/(www\.)?youtube\.com/) != null;
+        return url.match(/^https:\/\/(?: www\.)?youtube\.com/) != null;
     }
 });
 
@@ -116,8 +120,8 @@ function VimeoVideo($targetEl, videoUrl) {
 }
 
 $.extend(VimeoVideo.prototype, Video.prototype, {
-    createIframe : function() {
-        this.$iframe = $('<iframe src="'
+    createVideoEl : function() {
+        this.$videoEl = $('<iframe src="'
                 + this.videoUrl
                 + '?autoplay=1&loop=1&color=transparent&title=0&byline=0&portrait=0&badge=0&byline=0" width="640" height="360" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>');
     },
@@ -143,8 +147,8 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
         }
 
         // apply dimensions to iframe
-        this.$iframe.css('width', this.videoWidth + 'px');
-        this.$iframe.css('height', this.videoHeight + 'px')
+        this.$videoEl.css('width', this.videoWidth + 'px');
+        this.$videoEl.css('height', this.videoHeight + 'px')
     },
 
     getEmbedUrl : function() {
@@ -163,7 +167,7 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
 
     // static
     isValid : function(url) {
-        return (url.match(/\/\/.*?vimeo\.com/) != null);
+        return (url.match(/(?: https:\/\/)?(?: www)?\.?vimeo\.com/) != null);
     }
 });
 
@@ -179,26 +183,5 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
                 break;
             }
         }
-    }
-    
-    
-//    var videos = [];
-//
-//    $(document).ready(function() {
-//
-//        var $el = $('.nd-el:nth(0)');
-//
-//        //var videoUrl = 'https://www.youtube.com/watch?v=6pxRHBw-k8M';
-//
-//        var videoUrl = 'https://vimeo.com/35396305';
-//        
-//        for (var i = 0; i < videoTypes.length; i++) {
-//            var videoType = videoTypes[i];
-//            if (videoType.prototype.isValid(videoUrl)) {
-//                var video = new videoType($el, videoUrl);
-//                video.render();
-//                videos.push(video);
-//            }
-//        }
-//    });
+    }   
 }
