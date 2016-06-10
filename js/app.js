@@ -128,7 +128,8 @@ $.extend(YoutubeVideo.prototype, Video.prototype, {
                     showinfo : 0,
                     modestbranding : 1,
                     iv_load_policy : 3,
-                    origin : document.location.origin
+                    origin : document.location.origin,
+                    playlist : t.getVideoId()
                 },
                 events : {
                     'onReady' : t.onPlayerReady.bind(t)
