@@ -1,9 +1,10 @@
 /**
- * To add a new video type just create a class that extends from Video and add it to videoTypes.
+ * To add a new video type just create a class that extends from Video and add
+ * it to videoTypes.
  */
 
 // Video classes
-var videoTypes = [YoutubeVideo, VimeoVideo];
+var videoTypes = [ YoutubeVideo, VimeoVideo ];
 
 // Abstract, Video
 function Video($targetEl, videoUrl) {
@@ -12,34 +13,32 @@ function Video($targetEl, videoUrl) {
     this.videoUrl = videoUrl;
 
     this.$videoEl = {};
-
-    var t = this;
-    $(window).resize(function() {
-        t.reload();
-    })
+    
+    $(window).resize(this.updateSize.bind(this, true));
 }
 
 $.extend(Video.prototype, {
     render : function() {
-        this.videoUrl = this.getEmbedUrl();
 
-        this.createVideoEl();
-
-        this.adjustSize();
-
-        // video container
-        $videoContainerEl = $('<div class="video-background">');
-        this.$videoEl.appendTo($videoContainerEl);
-
-        // set overlay so the video can not be clicked/hovered
-        var $overlayEl = $('<div class="video-background-overlay">');
-        $overlayEl.appendTo(this.$targetEl);
-
-        // append video bg to element
-        $videoContainerEl.appendTo(this.$targetEl);
-
-        // target the middle part of the video
-        this.targetMiddlePart($videoContainerEl);
+//        this.videoUrl = this.getEmbedUrl();
+//
+//        this.createVideoEl();
+//
+//        this.adjustSize();
+//
+//        // video container
+//        $videoContainerEl = $('<div class="video-container">');
+//        this.$videoEl.appendTo($videoContainerEl);
+//
+//        // set overlay so the video can not be clicked/hovered
+//        var $overlayEl = $('<div class="video-container-overlay">');
+//        $overlayEl.appendTo(this.$targetEl);
+//
+//        // append video bg to element
+//        $videoContainerEl.appendTo(this.$targetEl);
+//
+//        // target the middle part of the video
+//        this.targetMiddlePart($videoContainerEl);
     },
 
     targetMiddlePart : function($containerEl) {
@@ -57,14 +56,8 @@ $.extend(Video.prototype, {
     },
 
     remove : function() {
-        this.$targetEl.find('.video-background').remove();
-        this.$targetEl.find('.video-background-overlay').remove();
-    },
-    
-    reload : function() {
-        this.remove();
-        
-        this.render();
+        this.$targetEl.find('.video-container').remove();
+        this.$targetEl.find('.video-container-overlay').remove();
     }
 })
 
@@ -74,43 +67,135 @@ function YoutubeVideo($targetEl, videoUrl) {
 }
 
 $.extend(YoutubeVideo.prototype, Video.prototype, {
-    createVideoEl : function() {
-        this.$videoEl = $('<iframe width="560" height="315" src="' + this.videoUrl
-                + '?autoplay=1&loop=1&controls=0" frameborder="0" allowfullscreen></iframe>');
-    },
+    isApiLoaded : false,
     
-    adjustSize : function() {
-        this.videoWidth = $('body').width();
+    player : false,
+    
+    // static
+    loadApi : function() {
+        var apiLoadedPromise = $.Deferred();
 
-        this.videoHeight = (9 / 16 * this.videoWidth);
+        if (this.isApiLoaded) {
+            apiLoadedPromise.resolve();
+        } else {
+            var tag = document.createElement('script');
 
-        if (this.videoHeight < this.$targetEl.height()) {
-            this.videoHeight = this.$targetEl.height();
+            tag.src = "https://www.youtube.com/iframe_api";
+            var firstScriptTag = document.getElementsByTagName('script')[0];
+            firstScriptTag.parentNode.insertBefore(tag, firstScriptTag);
+
+            // Called when the Youtube API finishes loading, it must be global according to the documentation.
+            window.onYouTubeIframeAPIReady = function() {
+                YoutubeVideo.prototype.isApiLoaded = true;
+
+                apiLoadedPromise.resolve();
+            }
+        }
+        
+        return apiLoadedPromise;
+    },
+
+    render : function() {
+        // video container, iframe will be appended to it
+        this.$videoContainerEl = $('<div class="video-container">');
+        this.$videoContainerEl.appendTo(this.$targetEl);
+
+        // placeholder for youtube iframe
+        var $iframePlaceholder = $('<div>');
+        $iframePlaceholder.appendTo(this.$videoContainerEl);
+
+        // set overlay so the video can not be clicked/hovered
+        var $overlayEl = $('<div class="video-container-overlay">');
+        $overlayEl.appendTo(this.$targetEl);
+
+        var t = this;
+        $.when(t.loadApi()).then(function() {
+            t.player = new YT.Player($iframePlaceholder.get(0), {
+                videoId : t.getVideoId(),
+                playerVars : {
+                    controls : 0,
+                    showinfo : 0,
+                    autoplay : 1,
+                    modestbranding : 1,
+                    iv_load_policy : 3,
+                    loop : 1,
+                    origin : document.location.origin
+                },
+                events : {
+                    'onReady' : t.onPlayerReady.bind(t)
+                }
+            });
+        });
+    },
+
+    isStarting : true,
+    
+    // The API will call this function when the video player is ready.
+    onPlayerReady : function(e) {
+        this.player.playVideo();
+         
+        this.player.mute();
+
+        this.updateSize();
+        
+        this.targetMiddlePart(this.$videoContainerEl);
+
+        this.isStarting = false;
+    },
+
+    calcSize : function() {
+        var videoWidth = $('body').width();
+        
+        console.log('body width', videoWidth);
+
+        var videoHeight = (9 / 16 * videoWidth);
+
+        if (videoHeight < this.$targetEl.height()) {
+            videoHeight = this.$targetEl.height();
 
             // recalc video width
-            this.videoWidth = (16 / 9 * this.videoHeight);
+            videoWidth = (16 / 9 * videoHeight);
         }
 
-        // apply dimensions to iframe
-        this.$videoEl.css('width', this.videoWidth + 'px');
-        this.$videoEl.css('height', this.videoHeight + 'px')
+        return {
+            videoWidth : videoWidth,
+            videoHeight : videoHeight
+        }
     },
 
-    getEmbedUrl : function() {
-        var url = this.videoUrl;
-        
-        var watchType = url.match(/\/watch\?v=(.*)$/);
-        if (watchType !== null) {
-            var videoId = watchType[1];
-            url = 'https://www.youtube.com/embed/' + videoId;
-        }
+    updateSizeTimer : false,
+    
+    updateSize : function(timed) {
+        var t = this;
 
-        return url;
+        setTimeout(function() {
+            var size = t.calcSize();
+
+            t.videoWidth = size.videoWidth;
+            t.videoHeight = size.videoHeight;
+
+            console.log('new size', t.videoWidth, t.videoHeight);
+
+            t.player.setSize(t.videoWidth, t.videoHeight);
+            
+            t.targetMiddlePart(t.$videoContainerEl);
+        })
+    },
+
+    getVideoId : function() {
+        var videoId = false;
+        
+        var watchType = this.videoUrl.match(/\/watch\?v=(.*)$/);
+        if (watchType !== null) {
+            videoId = watchType[1];
+        }
+        
+        return videoId;
     },
 
     // static
     isValid : function(url) {
-        return url.match(/^https:\/\/(?: www\.)?youtube\.com/) != null;
+        return url.match(/^https:\/\/(?:www\.)?youtube\.com/) != null;
     }
 });
 
@@ -125,7 +210,7 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
                 + this.videoUrl
                 + '?autoplay=1&loop=1&color=transparent&title=0&byline=0&portrait=0&badge=0&byline=0" width="640" height="360" frameborder="0" webkitallowfullscreen mozallowfullscreen allowfullscreen></iframe>');
     },
-    
+
     adjustSize : function() {
         // 1.06 = 6%. We need to add this width to hide vimeo
         // controls
@@ -167,13 +252,15 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
 
     // static
     isValid : function(url) {
-        return (url.match(/(?: https:\/\/)?(?: www)?\.?vimeo\.com/) != null);
+        return (url.match(/(?: https:\/\/)?(?:www)?\.?vimeo\.com/) != null);
     }
 });
 
 {
     function onSetVideoUrl(e) {
-        var videoUrl = $(e.target).val();
+        //var videoUrl = $(e.target).val();
+
+        var videoUrl = 'https://www.youtube.com/watch?v=PdCylcA_c40';
         
         for (var i = 0; i < videoTypes.length; i++) {
             var videoType = videoTypes[i];
@@ -183,5 +270,9 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
                 break;
             }
         }
-    }   
+    }
+    
+    $(document).ready(function() {
+        onSetVideoUrl();
+    })
 }

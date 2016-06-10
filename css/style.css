@@ -8,7 +8,7 @@
 	border-color: red;
 }
 
-.video-background {
+.video-container {
 	position: absolute;
 	z-index: -2;
 	top: 0;
@@ -17,7 +17,7 @@
 	overflow: hidden;
 }
 
-.video-background-overlay {
+.video-container-overlay {
 	position: absolute;
 	z-index: -1;
 	top: 0;
