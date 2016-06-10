@@ -12,35 +12,10 @@ function Video($targetEl, videoUrl) {
 
     this.videoUrl = videoUrl;
 
-    this.$videoEl = {};
-    
-    $(window).resize(this.updateSize.bind(this, true));
+    $(window).resize(this.onResize.bind(this));
 }
 
 $.extend(Video.prototype, {
-    render : function() {
-
-//        this.videoUrl = this.getEmbedUrl();
-//
-//        this.createVideoEl();
-//
-//        this.adjustSize();
-//
-//        // video container
-//        $videoContainerEl = $('<div class="video-container">');
-//        this.$videoEl.appendTo($videoContainerEl);
-//
-//        // set overlay so the video can not be clicked/hovered
-//        var $overlayEl = $('<div class="video-container-overlay">');
-//        $overlayEl.appendTo(this.$targetEl);
-//
-//        // append video bg to element
-//        $videoContainerEl.appendTo(this.$targetEl);
-//
-//        // target the middle part of the video
-//        this.targetMiddlePart($videoContainerEl);
-    },
-
     targetMiddlePart : function($containerEl) {
         var deltaY = this.videoHeight / 2;
         deltaY -= this.$targetEl.height() / 2;
@@ -55,9 +30,43 @@ $.extend(Video.prototype, {
         $containerEl.css('left', deltaX + 'px');
     },
 
-    remove : function() {
-        this.$targetEl.find('.video-container').remove();
-        this.$targetEl.find('.video-container-overlay').remove();
+    calcSize : function() {
+        var videoWidth = $('body').width();
+        
+        console.log('body width', videoWidth);
+
+        var videoHeight = (9 / 16 * videoWidth);
+
+        if (videoHeight < this.$targetEl.height()) {
+            videoHeight = this.$targetEl.height();
+
+            // recalc video width
+            videoWidth = (16 / 9 * videoHeight);
+        }
+
+        return {
+            videoWidth : videoWidth,
+            videoHeight : videoHeight
+        }
+    },
+    
+    updateSizeTimer : false,
+    
+    onResize : function() {
+        var t = this;
+
+        setTimeout(function() {
+            var size = t.calcSize();
+
+            t.videoWidth = size.videoWidth;
+            t.videoHeight = size.videoHeight;
+
+            console.log('new size', t.videoWidth, t.videoHeight);
+
+            t.updateSize(size);
+            
+            t.targetMiddlePart(t.$videoContainerEl);
+        })
     }
 })
 
@@ -75,7 +84,7 @@ $.extend(YoutubeVideo.prototype, Video.prototype, {
     loadApi : function() {
         var apiLoadedPromise = $.Deferred();
 
-        if (this.isApiLoaded) {
+        if (YoutubeVideo.prototype.isApiLoaded) {
             apiLoadedPromise.resolve();
         } else {
             var tag = document.createElement('script');
@@ -99,26 +108,26 @@ $.extend(YoutubeVideo.prototype, Video.prototype, {
         // video container, iframe will be appended to it
         this.$videoContainerEl = $('<div class="video-container">');
         this.$videoContainerEl.appendTo(this.$targetEl);
-
-        // placeholder for youtube iframe
-        var $iframePlaceholder = $('<div>');
-        $iframePlaceholder.appendTo(this.$videoContainerEl);
-
+        
         // set overlay so the video can not be clicked/hovered
         var $overlayEl = $('<div class="video-container-overlay">');
         $overlayEl.appendTo(this.$targetEl);
 
+        // placeholder for youtube iframe
+        this.$iframePlaceholder = $('<div>');
+        this.$iframePlaceholder.appendTo(this.$videoContainerEl);
+
         var t = this;
         $.when(t.loadApi()).then(function() {
-            t.player = new YT.Player($iframePlaceholder.get(0), {
+            t.player = new YT.Player(t.$iframePlaceholder.get(0), {
                 videoId : t.getVideoId(),
                 playerVars : {
+                    autoplay : 1,
+                    loop : 1,
                     controls : 0,
                     showinfo : 0,
-                    autoplay : 1,
                     modestbranding : 1,
                     iv_load_policy : 3,
-                    loop : 1,
                     origin : document.location.origin
                 },
                 events : {
@@ -128,58 +137,19 @@ $.extend(YoutubeVideo.prototype, Video.prototype, {
         });
     },
 
-    isStarting : true,
-    
     // The API will call this function when the video player is ready.
     onPlayerReady : function(e) {
         this.player.playVideo();
          
         this.player.mute();
 
-        this.updateSize();
-        
-        this.targetMiddlePart(this.$videoContainerEl);
-
-        this.isStarting = false;
-    },
-
-    calcSize : function() {
-        var videoWidth = $('body').width();
-        
-        console.log('body width', videoWidth);
-
-        var videoHeight = (9 / 16 * videoWidth);
-
-        if (videoHeight < this.$targetEl.height()) {
-            videoHeight = this.$targetEl.height();
-
-            // recalc video width
-            videoWidth = (16 / 9 * videoHeight);
-        }
-
-        return {
-            videoWidth : videoWidth,
-            videoHeight : videoHeight
-        }
+        this.onResize();
     },
 
     updateSizeTimer : false,
     
-    updateSize : function(timed) {
-        var t = this;
-
-        setTimeout(function() {
-            var size = t.calcSize();
-
-            t.videoWidth = size.videoWidth;
-            t.videoHeight = size.videoHeight;
-
-            console.log('new size', t.videoWidth, t.videoHeight);
-
-            t.player.setSize(t.videoWidth, t.videoHeight);
-            
-            t.targetMiddlePart(t.$videoContainerEl);
-        })
+    updateSize : function() {
+        this.player.setSize(this.videoWidth, this.videoHeight);
     },
 
     getVideoId : function() {
@@ -258,9 +228,9 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
 
 {
     function onSetVideoUrl(e) {
-        //var videoUrl = $(e.target).val();
+        var videoUrl = $(e.target).val();
 
-        var videoUrl = 'https://www.youtube.com/watch?v=PdCylcA_c40';
+        //var videoUrl = 'https://www.youtube.com/watch?v=PdCylcA_c40';
         
         for (var i = 0; i < videoTypes.length; i++) {
             var videoType = videoTypes[i];
@@ -272,7 +242,7 @@ $.extend(VimeoVideo.prototype, Video.prototype, {
         }
     }
     
-    $(document).ready(function() {
-        onSetVideoUrl();
-    })
+//    $(document).ready(function() {
+//        onSetVideoUrl();
+//    })
 }
