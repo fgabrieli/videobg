@@ -7,23 +7,31 @@
     /**
      * Video types. Add new video types in this array so the builder can render them properly as video backgrounds.
      */
-    var videoTypes = [ YoutubeVideoBg, VimeoVideoBg ];
+    window.neo = window.neo ? window.neo : {};
+    
+    neo.getVideoBgTypes = function() {
+        return [ YoutubeVideoBg, VimeoVideoBg ];
+    }
     
     /**
      * Video background class (abstract).
      * 
      * @param jQuery element where the player will be embedded.
-     * @param String raw video url from user input.
+     * @param String optional raw video url from user input.
      */
     function VideoBg($targetEl, videoUrl) {
         this.$targetEl = $targetEl;
 
-        this.videoUrl = videoUrl;
+        if (typeof videoUrl !== 'undefined') {
+            this.load(videoUrl);
+        }
         
         $(window).resize(this.onResize.bind(this));
     }
 
     $.extend(VideoBg.prototype, {
+        videoUrl : '',
+        
         videoWidth : 0,
 
         videoHeight : 0,
@@ -33,6 +41,27 @@
         
         // overlay set to the target element so that the video can not be clicked/hovered
         $overlayEl : {},
+        
+        load : function(url) {
+            this.videoUrl = url;
+
+            this.render();
+        },
+
+        unload : function() {
+            this.$overlayEl.remove();
+            
+            this.$videoContainerEl.remove();
+        },
+
+        // implemented by child classes
+        render : function() {},
+        
+        // implemented by child classes
+        play : function() {},
+        
+        // implemented by child classes
+        stop : function() {},
         
         targetMiddlePart : function($containerEl) {
             var deltaY = this.videoHeight / 2;
@@ -90,7 +119,8 @@
         
         appendOverlay : function() {
             // set overlay so the video can not be clicked/hovered
-            $('<div class="video-container-overlay">').appendTo(this.$targetEl);
+            this.$overlayEl = $('<div class="video-container-overlay">');
+            this.$overlayEl.appendTo(this.$targetEl);
         }
     });
 
@@ -106,10 +136,12 @@
     }
 
     $.extend(YoutubeVideoBg.prototype, VideoBg.prototype, {
+        type : 'youtube',
+       
         isApiLoaded : false,
         
         player : false,
-        
+
         // @static
         loadApi : function() {
             var apiLoadedPromise = $.Deferred();
@@ -163,7 +195,7 @@
                 });
             });
         },
-
+        
         // The API will call this function when the video player is ready.
         onPlayerReady : function(e) {
             this.player.playVideo();
@@ -171,6 +203,20 @@
             this.player.mute();
 
             this.onResize();
+        },
+
+        unload : function() {
+            this.player.destroy();
+            
+            VideoBg.prototype.unload.call(this);
+        },
+        
+        play : function() {
+            this.player.playVideo();
+        },
+        
+        stop : function() {
+            this.player.stopVideo();
         },
 
         updateSize : function() {
@@ -187,7 +233,7 @@
             
             return videoId;
         },
-
+        
         // @static
         isValid : function(url) {
             return url.match(/^https:\/\/(?:www\.)?youtube\.com/) != null;
@@ -207,10 +253,12 @@
     }
 
     $.extend(VimeoVideoBg.prototype, VideoBg.prototype, {
+        type : 'vimeo',
+        
         // @static
         apiLoadedPromise : false,
 
-        // 
+        // this is the name given by vimeo to their api
         froogaloop : {},
         
         // video iframe
@@ -240,6 +288,22 @@
             }
             
             return VimeoVideoBg.prototype.apiLoadedPromise;
+        },
+        
+        play : function() {
+            this.froogaloop.api('play');
+        },
+        
+        stop : function() {
+            this.froogaloop.api('pause');
+        },
+        
+        unload : function() {
+            this.froogaloop.api('unload');
+
+            this.$iframe.remove();
+            
+            VideoBg.prototype.unload.call(this);
         },
 
         render : function() {
@@ -338,40 +402,32 @@
             
             return videoId;
         },
-
-        // @static
+        
         isValid : function(url) {
             return (url.match(/(?: https:\/\/)?(?:www)?\.?vimeo\.com/) != null);
         }
     });
     
     
-    // remove after here
-    
-    window.onSetVideoUrl = function(e) {
-            var videoUrl = $(e.target).val();
-
-            for (var i = 0; i < videoTypes.length; i++) {
-                var videoType = videoTypes[i];
-                if (videoType.prototype.isValid(videoUrl)) {
-                    var video = new videoType($('.nd-el'), videoUrl);
-                    video.render();
-                    break;
-                }
-            }
-    }
-
     $(document).ready(function() {
 //        var videoUrl = 'https://www.youtube.com/watch?v=3nmnMtbzzjE';
         var videoUrl = 'https://vimeo.com/168794118';
         
+        var videoTypes = neo.getVideoBgTypes();
+        
         for (var i = 0; i < videoTypes.length; i++) {
             var videoType = videoTypes[i];
             if (videoType.prototype.isValid(videoUrl)) {
-                var video = new videoType($('.nd-el'), videoUrl);
-                video.render();
+                window.video = new videoType($('.nd-el'), videoUrl);
                 break;
             }
         }
     })
+    
+    window.onSetVideoUrl = function(e) {
+        var videoUrl = $(e.target).val();
+            
+        video.load(videoUrl);
+    }
+
 })(jQuery);
