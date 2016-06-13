@@ -4,17 +4,23 @@
  */
 
 (function($) {
-    /**
-     * Video types. Add new video types in this array so the builder can render them properly as video backgrounds.
-     */
     window.neo = window.neo ? window.neo : {};
     
-    neo.getVideoBgTypes = function() {
-        return [ YoutubeVideoBg, VimeoVideoBg ];
-    }
+    /**
+     * Video background types. Add new video types in this array so the builder can render them properly as video backgrounds.
+     */
+    neo.videoBgTypes = [ YoutubeVideoBg, VimeoVideoBg ];
     
     /**
      * Video background class (abstract).
+     * 
+     * Child classes should implement:
+     * 
+     * - render(): will render the video according to this.$videoUrl, provided with load(url) call
+     * - unload(): will unload the video
+     * - play(): plays the video
+     * - pause(): pause the video
+     * 
      * 
      * @param jQuery element where the player will be embedded.
      * @param String optional raw video url from user input.
@@ -61,7 +67,7 @@
         play : function() {},
         
         // implemented by child classes
-        stop : function() {},
+        pause : function() {},
         
         targetMiddlePart : function($containerEl) {
             var deltaY = this.videoHeight / 2;
@@ -215,8 +221,8 @@
             this.player.playVideo();
         },
         
-        stop : function() {
-            this.player.stopVideo();
+        pause : function() {
+            this.player.pauseVideo();
         },
 
         updateSize : function() {
@@ -294,7 +300,7 @@
             this.froogaloop.api('play');
         },
         
-        stop : function() {
+        pause : function() {
             this.froogaloop.api('pause');
         },
         
@@ -413,21 +419,29 @@
 //        var videoUrl = 'https://www.youtube.com/watch?v=3nmnMtbzzjE';
         var videoUrl = 'https://vimeo.com/168794118';
         
-        var videoTypes = neo.getVideoBgTypes();
+        loadVideo(videoUrl);
+    })
+
+    function loadVideo(videoUrl) {
+        var videoTypes = neo.videoBgTypes;
         
         for (var i = 0; i < videoTypes.length; i++) {
             var videoType = videoTypes[i];
             if (videoType.prototype.isValid(videoUrl)) {
-                window.video = new videoType($('.nd-el'), videoUrl);
+                if (window.video && window.video.isValid(videoUrl)) {
+                    window.video.load(videoUrl);
+                } else {
+                    window.video = new videoType($('.nd-el'), videoUrl);
+                }
                 break;
             }
         }
-    })
+    }
     
     window.onSetVideoUrl = function(e) {
         var videoUrl = $(e.target).val();
-            
-        video.load(videoUrl);
+
+        loadVideo(videoUrl);
     }
 
 })(jQuery);
